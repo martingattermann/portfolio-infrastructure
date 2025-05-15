@@ -1,0 +1,44 @@
+---
+- name: Check if Thanos image is present
+  shell: ctr image ls -q name==docker.io/thanosio/thanos:v0.34.0
+  register: thanos_image_check
+  changed_when: false
+  failed_when: false
+
+- name: Pull Thanos image if not present
+  shell: ctr image pull docker.io/thanosio/thanos:v0.34.0
+  when: thanos_image_check.stdout == ""
+
+- name: Ensure /etc/thanos exists
+  file:
+    path: /etc/thanos
+    state: directory
+    mode: '0755'
+
+- name: Copy Thanos config
+  template:
+    src: templates/thanos.yml.j2
+    dest: /etc/thanos/thanos.yml
+    mode: '0644'
+
+- name: Remove existing thanos-sidecar container
+  shell: |
+    ctr task rm thanos-sidecar || true
+    ctr container rm thanos-sidecar || true
+    ctr snapshot rm thanos-sidecar || true
+  ignore_errors: yes
+
+- name: Run Thanos sidecar container
+  shell: |
+    ctr run --detach \
+      --net-host \
+      --mount type=bind,src=/var/lib/prometheus,dst=/var/lib/prometheus,options=rbind:rw \
+      --mount type=bind,src=/etc/thanos/thanos.yml,dst=/etc/thanos/thanos.yml,options=rbind:ro \
+      docker.io/thanosio/thanos:v0.34.0 thanos-sidecar \
+      thanos sidecar \
+      --tsdb.path=/var/lib/prometheus \
+      --prometheus.url=http://localhost:9090 \
+      --http-address=0.0.0.0:19191 \
+      --grpc-address=0.0.0.0:19090
+  args:
+    creates: /run/containerd/io.containerd.runtime.v2.task/default/thanos-sidecar

@@ -1,0 +1,9 @@
+plugin: hetzner.hcloud.hcloud
+token: "{{ lookup('env', 'HCLOUD_TOKEN') }}"
+compose:
+    ansible_host: public_net.ipv4.ip
+keyed_groups:
+    - key: labels.managed_by
+      prefix: managed_by
+    - key: labels.type
+      prefix: type

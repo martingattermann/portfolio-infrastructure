@@ -1,0 +1,48 @@
+---
+- name: Ensure Prometheus config directory exists
+  file:
+    path: /etc/prometheus
+    state: directory
+    mode: '0755'
+
+- name: Ensure Prometheus data directory exists
+  file:
+    path: /var/lib/prometheus
+    state: directory
+    mode: '0755'
+
+- name: Set ownership of Prometheus data directory to nobody
+  file:
+    path: /var/lib/prometheus
+    owner: 65534
+    group: 65534
+    recurse: yes
+
+- name: Copy Prometheus configuration
+  template:
+    src: prometheus.yml.j2
+    dest: /etc/prometheus/prometheus.yml
+    mode: '0644'
+
+- name: Check if Prometheus image is present
+  shell: ctr image ls -q name==docker.io/prom/prometheus:v2.52.0
+  register: prometheus_image_check
+  changed_when: false
+  failed_when: false
+
+- name: Pull Prometheus image if not present
+  shell: ctr image pull docker.io/prom/prometheus:v2.52.0
+  when: prometheus_image_check.stdout == ""
+
+- name: Run Prometheus container
+  shell: |
+    ctr run --detach \
+      --net-host \
+      --mount type=bind,src=/etc/prometheus/prometheus.yml,dst=/etc/prometheus/prometheus.yml,options=rbind:ro \
+      --mount type=bind,src=/var/lib/prometheus,dst=/prometheus,options=rbind:rw \
+      docker.io/prom/prometheus:v2.52.0 prometheus \
+      prometheus \
+      --config.file=/etc/prometheus/prometheus.yml \
+      --storage.tsdb.path=/prometheus
+  args:
+    creates: /run/containerd/io.containerd.runtime.v2.task/default/prometheus

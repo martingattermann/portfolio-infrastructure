@@ -1,0 +1,21 @@
+---
+- name: Setup
+  hosts: type_webserver
+  become: true
+  handlers:
+    - name: restart nginx
+      service:
+        name: nginx
+        state: restarted
+    - name: restart nginx-exporter
+      service:
+        name: nginx-exporter
+        state: restarted
+  roles:
+    - nginx
+    - duckdb
+    - node-exporter
+    - containerd
+    - nginx-exporter
+    - prometheus
+    - thanos-sidecar
