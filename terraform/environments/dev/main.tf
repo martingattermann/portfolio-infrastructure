@@ -48,6 +48,28 @@ module "hetzner_compute" {
   lst_firewall_ids = local.active_firewall_ids
 }
 
+module "hetzner_compute_database" {
+  source = "../../modules/hetzner/compute"
+
+  providers = {
+    hcloud = hcloud
+  }
+
+  server_name = "ubuntu-4gb-hel1-2"
+  server_count = 1
+  server_type  = "cx22"
+  location     = "hel1"
+  image        = "ubuntu-24.04"
+  labels       = {
+    "env" = "dev"
+    "type" = "database"
+    "managed_by" = "ansible"
+    "created_by" = "terraform"
+  }
+  ssh_keys     = [hcloud_ssh_key.default.id]
+  lst_firewall_ids = local.active_firewall_ids
+}
+
 module "hetzner_network" {
   source = "../../modules/hetzner/network"
 
@@ -61,7 +83,7 @@ module "hetzner_network" {
   my_ip_range = var.my_ip
   egress_name = "egress"
 }
-
+/*
 module "cloudflare_www" {
   source = "../../modules/cloudflare"
 
@@ -75,3 +97,4 @@ module "cloudflare_www" {
   server_ip = module.hetzner_compute.server_ips[0]
   ttl_value = 1
 }
+*/
